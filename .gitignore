@@ -1,8 +1,21 @@
-node_modules
-.next
+# dependencies
+node_modules/
+**/node_modules/
+
+# next build
+.next/
+**/.next/
+
+# env files
 .env
-dist
-build
-coverage
+**/.env
+
+# logs
 *.log
+
+# mac
 .DS_Store
+
+# build
+dist/
+build/
