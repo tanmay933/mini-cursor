@@ -1,10 +1,10 @@
-'use client';
-import { useState, useEffect, useCallback } from 'react';
-import Navbar from '../components/Navbar';
-import FileTree from '../components/FileTree';
-import EditorTabs from '../components/EditorTabs';
-import ChatPanel from '../components/ChatPanel';
-import TerminalPanel from '../components/TerminalPanel';
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import Navbar from "../components/Navbar";
+import FileTree from "../components/FileTree";
+import EditorTabs from "../components/EditorTabs";
+import ChatPanel from "../components/ChatPanel";
+import TerminalPanel from "../components/TerminalPanelWrapper";
 
 interface OpenFile {
   path: string;
@@ -12,12 +12,12 @@ interface OpenFile {
 }
 
 export default function Home() {
-  const [workspacePath, setWorkspacePath] = useState<string>('');
+  const [workspacePath, setWorkspacePath] = useState<string>("");
   const [fileTree, setFileTree] = useState<any[]>([]);
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [terminalVisible, setTerminalVisible] = useState(true);
-  const [selectedCode, setSelectedCode] = useState('');
+  const [selectedCode, setSelectedCode] = useState("");
 
   useEffect(() => {
     if (!workspacePath) {
@@ -26,7 +26,10 @@ export default function Home() {
       setActiveFilePath(null);
       return;
     }
-    fetch('http://localhost:5001/api/files?root=' + encodeURIComponent(workspacePath))
+    fetch(
+      "http://localhost:5001/api/files?root=" +
+        encodeURIComponent(workspacePath),
+    )
       .then((r) => r.json())
       .then(setFileTree)
       .catch(console.error);
@@ -39,13 +42,16 @@ export default function Home() {
         return;
       }
       const res = await fetch(
-        'http://localhost:5001/api/files/content?root=' + encodeURIComponent(workspacePath) + '&file=' + encodeURIComponent(filePath)
+        "http://localhost:5001/api/files/content?root=" +
+          encodeURIComponent(workspacePath) +
+          "&file=" +
+          encodeURIComponent(filePath),
       );
       const { content } = await res.json();
       setOpenFiles((prev) => [...prev, { path: filePath, content }]);
       setActiveFilePath(filePath);
     },
-    [workspacePath, openFiles]
+    [workspacePath, openFiles],
   );
 
   const closeFile = useCallback(
@@ -53,45 +59,72 @@ export default function Home() {
       setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
       if (activeFilePath === filePath) {
         const remaining = openFiles.filter((f) => f.path !== filePath);
-        setActiveFilePath(remaining.length > 0 ? remaining[remaining.length - 1].path : null);
+        setActiveFilePath(
+          remaining.length > 0 ? remaining[remaining.length - 1].path : null,
+        );
       }
     },
-    [activeFilePath, openFiles]
+    [activeFilePath, openFiles],
   );
 
-  const updateFileContent = useCallback((filePath: string, newContent: string) => {
-    setOpenFiles((prev) =>
-      prev.map((f) => (f.path === filePath ? { ...f, content: newContent } : f))
-    );
-  }, []);
+  const updateFileContent = useCallback(
+    (filePath: string, newContent: string) => {
+      setOpenFiles((prev) =>
+        prev.map((f) =>
+          f.path === filePath ? { ...f, content: newContent } : f,
+        ),
+      );
+    },
+    [],
+  );
 
   const saveFileToDisk = async (filePath: string, content: string) => {
     await fetch(
-      'http://localhost:5001/api/files?root=' + encodeURIComponent(workspacePath) + '&file=' + encodeURIComponent(filePath),
+      "http://localhost:5001/api/files?root=" +
+        encodeURIComponent(workspacePath) +
+        "&file=" +
+        encodeURIComponent(filePath),
       {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
-      }
+      },
     );
   };
 
-  const createFile = async (type: 'file' | 'directory', relativePath: string, content?: string) => {
-    await fetch('http://localhost:5001/api/files?root=' + encodeURIComponent(workspacePath), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, path: relativePath, content }),
-    });
-    const res = await fetch('http://localhost:5001/api/files?root=' + encodeURIComponent(workspacePath));
+  const createFile = async (
+    type: "file" | "directory",
+    relativePath: string,
+    content?: string,
+  ) => {
+    await fetch(
+      "http://localhost:5001/api/files?root=" +
+        encodeURIComponent(workspacePath),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, path: relativePath, content }),
+      },
+    );
+    const res = await fetch(
+      "http://localhost:5001/api/files?root=" +
+        encodeURIComponent(workspacePath),
+    );
     setFileTree(await res.json());
   };
 
   const deleteFile = async (relativePath: string) => {
     await fetch(
-      'http://localhost:5001/api/files?root=' + encodeURIComponent(workspacePath) + '&file=' + encodeURIComponent(relativePath),
-      { method: 'DELETE' }
+      "http://localhost:5001/api/files?root=" +
+        encodeURIComponent(workspacePath) +
+        "&file=" +
+        encodeURIComponent(relativePath),
+      { method: "DELETE" },
     );
-    const res = await fetch('http://localhost:5001/api/files?root=' + encodeURIComponent(workspacePath));
+    const res = await fetch(
+      "http://localhost:5001/api/files?root=" +
+        encodeURIComponent(workspacePath),
+    );
     setFileTree(await res.json());
     if (openFiles.find((f) => f.path === relativePath)) {
       closeFile(relativePath);
@@ -130,7 +163,11 @@ export default function Home() {
           </div>
           {terminalVisible && (
             <div className="h-48 border-t border-gray-700">
-              {/* <TerminalPanel workspacePath={workspacePath} /> */}
+              {" "}
+              <TerminalPanel
+                key={workspacePath}
+                workspacePath={workspacePath}
+              />{" "}
             </div>
           )}
         </div>
@@ -139,8 +176,9 @@ export default function Home() {
             workspacePath={workspacePath}
             activeFileContent={
               activeFilePath
-                ? openFiles.find((f) => f.path === activeFilePath)?.content || ''
-                : ''
+                ? openFiles.find((f) => f.path === activeFilePath)?.content ||
+                  ""
+                : ""
             }
             activeFilePath={activeFilePath}
             onApplyCode={(newContent) => {

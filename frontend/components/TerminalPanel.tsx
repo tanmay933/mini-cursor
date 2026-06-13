@@ -1,69 +1,97 @@
-'use client';
-import { useEffect, useRef } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import { io, Socket } from 'socket.io-client';
-import 'xterm/css/xterm.css';
+"use client";
+
+import { useEffect, useRef } from "react";
+import { io } from "socket.io-client";
+
+import "xterm/css/xterm.css";
 
 interface TerminalPanelProps {
   workspacePath: string;
 }
 
-export default function TerminalPanel({ workspacePath }: TerminalPanelProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const term = useRef<Terminal | null>(null);
-  const socket = useRef<Socket | null>(null);
-  const fitAddon = useRef<FitAddon | null>(null);
+export default function TerminalPanel({
+  workspacePath,
+}: TerminalPanelProps) {
+  const terminalRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!workspacePath) return;
+    let socket: any;
+    let term: any;
 
-    term.current = new Terminal({
-      theme: { background: '#0d1117', foreground: '#c9d1d9', cursor: '#58a6ff' },
-      cursorBlink: true,
-      fontSize: 13,
-      fontFamily: "'Fira Code', 'Cascadia Code', monospace",
-      allowProposedApi: true,
-    });
-    fitAddon.current = new FitAddon();
-    term.current.loadAddon(fitAddon.current);
+    const initTerminal = async () => {
+      if (!terminalRef.current) return;
 
-    if (terminalRef.current) {
-      term.current.open(terminalRef.current);
-      setTimeout(() => fitAddon.current?.fit(), 50);
-    }
+      const xterm = await import("xterm");
 
-    socket.current = io('http://localhost:5001');
-    socket.current.emit('start-terminal', { rootPath: workspacePath });
-    socket.current.on('terminal-output', (data: string) => {
-      term.current?.write(data);
-    });
-    term.current.onData((data) => {
-      socket.current?.emit('terminal-input', data);
-    });
+      const Terminal = xterm.Terminal;
 
-    const handleResize = () => {
-      fitAddon.current?.fit();
-      const dims = term.current?.cols && term.current?.rows ? { cols: term.current.cols, rows: term.current.rows } : null;
-      if (dims) socket.current?.emit('resize-terminal', dims);
+      term = new Terminal({
+        cols: 100,
+        rows: 20,
+
+        cursorBlink: true,
+
+        fontSize: 13,
+
+        fontFamily: "monospace",
+
+        theme: {
+          background: "#0d1117",
+          foreground: "#c9d1d9",
+          cursor: "#58a6ff",
+        },
+      });
+
+      requestAnimationFrame(() => {
+        if (!terminalRef.current) return;
+
+        term.open(terminalRef.current);
+
+        socket = io("http://localhost:5001", {
+          transports: ["websocket"],
+        });
+
+        socket.on("connect", () => {
+          socket.emit("start-terminal", {
+            rootPath: workspacePath,
+          });
+        });
+
+        socket.on("terminal-output", (data: string) => {
+          term.write(data);
+        });
+
+        socket.on("terminal-error", (err: any) => {
+          term.writeln("");
+          term.writeln("[Terminal Error]");
+          term.writeln(err?.message || "Unknown error");
+        });
+
+        term.onData((data: string) => {
+          socket.emit("terminal-input", data);
+        });
+      });
     };
-    window.addEventListener('resize', handleResize);
-    setTimeout(handleResize, 200);
+
+    initTerminal();
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      socket.current?.disconnect();
-      term.current?.dispose();
+      try {
+        socket?.disconnect();
+        term?.dispose();
+      } catch {}
     };
   }, [workspacePath]);
 
   return (
-    <div className="h-full w-full bg-[#0d1117]">
-      <div className="bg-gray-850 border-b border-gray-700 px-3 py-1 text-xs text-gray-400 uppercase tracking-wide flex items-center space-x-2">
-        <span>▸ Terminal</span>
-        <span className="text-gray-600 text-[10px]">{workspacePath || 'no workspace'}</span>
+    <div className="flex flex-col h-full w-full bg-[#0d1117] overflow-hidden">
+      <div className="h-8 shrink-0 border-b border-gray-700 flex items-center px-3 text-xs text-gray-400">
+        Terminal
       </div>
-      <div ref={terminalRef} className="h-[calc(100%-28px)] w-full" />
+
+      <div className="flex-1 overflow-auto p-2">
+        <div ref={terminalRef} />
+      </div>
     </div>
   );
 }
